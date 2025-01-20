@@ -4,49 +4,61 @@
 #include <chrono>
 #include <cmath>
 
-double calculate_partial_integral(int start, int end, int total_intervals) {
+double calculate_integral_part(double start, double end, int steps) {
     double sum = 0.0;
-    double step = 1.0 / total_intervals;
-    for (int i = start; i < end; ++i) {
-        double x = (i + 0.5) * step;
+    double step_size = (end - start) / steps;
+
+    for (int i = 0; i < steps; ++i) {
+        double x = start + i * step_size;
         sum += 4.0 / (1.0 + x * x);
     }
-    return sum;
+
+    return sum * step_size;
 }
 
-int main() {
-    int num_intervals = 100000000;  
-    int num_threads = 4;           
-
+void parallel_integral(int num_threads, int num_steps) {
     std::vector<std::thread> threads;
-    std::vector<double> results(num_threads, 0.0);
+    std::vector<double> results(num_threads);
+    double step_size = 1.0 / num_steps;
+    int steps_per_thread = num_steps / num_threads;
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    auto calculate_part = [&](int thread_id) {
+        double start = thread_id * steps_per_thread * step_size;
+        double end = start + steps_per_thread * step_size;
+        results[thread_id] = calculate_integral_part(start, end, steps_per_thread);
+    };
 
-    int intervals_per_thread = num_intervals / num_threads;
-    for (int t = 0; t < num_threads; ++t) {
-        int start = t * intervals_per_thread;
-        int end = (t == num_threads - 1) ? num_intervals : (t + 1) * intervals_per_thread;
-        threads.emplace_back([start, end, &results, t, num_intervals]() {
-            results[t] = calculate_partial_integral(start, end, num_intervals);
-        });
+    for (int i = 0; i < num_threads; ++i) {
+        threads.emplace_back(calculate_part, i);
     }
 
     for (auto& thread : threads) {
         thread.join();
     }
 
-    double pi = 0.0;
+    double total_sum = 0.0;
     for (const auto& result : results) {
-        pi += result;
+        total_sum += result;
     }
-    pi *= (1.0 / num_intervals);
 
+    std::cout << "Wynik: " << total_sum << std::endl;
+}
+
+int main() {
+    int num_threads, num_steps;
+
+    std::cout << "Podaj liczbe watkow: ";
+    std::cin >> num_threads;
+
+    std::cout << "Podaj liczbe krokow: ";
+    std::cin >> num_steps;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+    parallel_integral(num_threads, num_steps);
     auto end_time = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end_time - start_time;
 
-    std::cout << "Liczba PI: " << pi << std::endl;
-    std::cout << "Czas: " << elapsed.count() << " sekund" << std::endl;
+    std::chrono::duration<double> duration = end_time - start_time;
+    std::cout << "Czas obliczen: " << duration.count() << " sekund" << std::endl;
 
     return 0;
 }
