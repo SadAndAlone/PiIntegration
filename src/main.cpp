@@ -4,7 +4,6 @@
 #include <chrono>
 #include <cmath>
 
-// Funkcja do obliczania części całki
 double calculate_partial_integral(int start, int end, int total_intervals) {
     double sum = 0.0;
     double step = 1.0 / total_intervals;
